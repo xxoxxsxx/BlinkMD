@@ -451,9 +451,6 @@ export function App() {
           <button type="button" onClick={() => void onSave()} disabled={isBusy}>
             Save
           </button>
-          <button type="button" onClick={() => void onSaveAs()} disabled={isBusy}>
-            Save As
-          </button>
           <button
             type="button"
             onClick={() => {
