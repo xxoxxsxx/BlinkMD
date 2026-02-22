@@ -1,5 +1,7 @@
 # BlinkMD
 
+English | [中文](./README.zh-CN.md)
+
 A local-first, lightweight Markdown editor built with **Tauri 2.x** + **React 18** + **TypeScript** + **Vite**.
 
 Fast startup, low memory footprint, keyboard-driven workflow.
