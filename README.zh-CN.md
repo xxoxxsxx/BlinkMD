@@ -12,7 +12,7 @@
 - **CodeMirror 6 编辑器** — Markdown 语法高亮、行号、自动换行
 - **Markdown 渲染** — 通过 `marked` 支持 CommonMark + GFM（表格、任务列表、围栏代码块），内置 XSS 净化
 - **原生文件读写** — 通过 Tauri Rust 命令和原生文件对话框实现打开 / 保存 / 另存为
-- **快捷键** — `Cmd/Ctrl+O` 打开、`Cmd/Ctrl+S` 保存、`Cmd/Ctrl+Shift+S` 另存为、`Cmd/Ctrl+E` 编辑模式、`Cmd/Ctrl+R` 预览模式
+- **快捷键** — `Cmd/Ctrl+O` 打开、`Cmd/Ctrl+S` 保存、`Cmd/Ctrl+Shift+S` 另存为、`Cmd/Ctrl+E` 编辑模式、`Cmd/Ctrl+R` 预览模式、`Cmd/Ctrl+\` 分屏模式
 - **状态栏** — 字数统计（CJK + Latin）、光标位置（行/列）、文件名、脏状态指示
 - **关闭守护** — 关闭窗口时弹出未保存提示（保存 / 不保存 / 取消）
 - **大文件模式** — 文档超过 1MB 时自动降低预览刷新频率
@@ -122,6 +122,7 @@ src-tauri/
 | `Cmd/Ctrl + Shift + S` | 另存为 |
 | `Cmd/Ctrl + E` | 切换到编辑模式 |
 | `Cmd/Ctrl + R` | 切换到预览模式 |
+| `Cmd/Ctrl + \` | 切换到分屏模式 |
 
 ## 许可证
 
