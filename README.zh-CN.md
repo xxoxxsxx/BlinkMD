@@ -51,6 +51,22 @@ npm run tauri build
 
 产物位于 `src-tauri/target/release/bundle/`，包含对应平台的安装包。
 
+### 在 Windows 上构建
+
+前置条件：
+
+- Node.js >= 18
+- Rust 工具链（stable）
+- [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)，勾选"C++ 生成工具"工作负载
+- [WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)（Windows 10/11 通常已预装）
+
+```bash
+npm install
+npm run tauri build
+```
+
+构建完成后，`.msi` 和 `.exe` 安装包位于 `src-tauri/target/release/bundle/nsis/` 和 `src-tauri/target/release/bundle/msi/`。
+
 ### macOS：提示"应用已损坏"的解决方法
 
 由于发布版本未经 Apple 签名，macOS Gatekeeper 可能会拦截应用并提示：

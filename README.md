@@ -51,6 +51,22 @@ npm run tauri build
 
 Output: platform-specific bundles in `src-tauri/target/release/bundle/`.
 
+### Building on Windows
+
+Prerequisites:
+
+- Node.js >= 18
+- Rust toolchain (stable)
+- [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with "C++ build tools" workload
+- [WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) (pre-installed on Windows 10/11)
+
+```bash
+npm install
+npm run tauri build
+```
+
+This produces `.msi` and `.exe` installers in `src-tauri/target/release/bundle/nsis/` and `src-tauri/target/release/bundle/msi/`.
+
 ### macOS: "App Is Damaged" Fix
 
 The release builds are not Apple-signed. macOS Gatekeeper may block the app with:
