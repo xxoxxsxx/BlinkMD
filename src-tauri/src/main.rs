@@ -18,13 +18,18 @@ fn main() {
                 let edit_shortcut = Shortcut::new(Some(Modifiers::SUPER), Code::KeyE);
                 #[cfg(target_os = "macos")]
                 let preview_shortcut = Shortcut::new(Some(Modifiers::SUPER), Code::KeyR);
+                #[cfg(target_os = "macos")]
+                let split_shortcut = Shortcut::new(Some(Modifiers::SUPER), Code::Backslash);
                 #[cfg(not(target_os = "macos"))]
                 let edit_shortcut = Shortcut::new(Some(Modifiers::CONTROL), Code::KeyE);
                 #[cfg(not(target_os = "macos"))]
                 let preview_shortcut = Shortcut::new(Some(Modifiers::CONTROL), Code::KeyR);
+                #[cfg(not(target_os = "macos"))]
+                let split_shortcut = Shortcut::new(Some(Modifiers::CONTROL), Code::Backslash);
 
                 let edit_shortcut_for_handler = edit_shortcut.clone();
                 let preview_shortcut_for_handler = preview_shortcut.clone();
+                let split_shortcut_for_handler = split_shortcut.clone();
 
                 app.handle().plugin(
                     tauri_plugin_global_shortcut::Builder::new()
@@ -37,6 +42,8 @@ fn main() {
                                 let _ = app.emit("blinkmd://shortcut-edit-mode", ());
                             } else if shortcut == &preview_shortcut_for_handler {
                                 let _ = app.emit("blinkmd://shortcut-preview-mode", ());
+                            } else if shortcut == &split_shortcut_for_handler {
+                                let _ = app.emit("blinkmd://shortcut-split-mode", ());
                             }
                         })
                         .build(),
@@ -44,6 +51,7 @@ fn main() {
 
                 app.global_shortcut().register(edit_shortcut)?;
                 app.global_shortcut().register(preview_shortcut)?;
+                app.global_shortcut().register(split_shortcut)?;
             }
 
             Ok(())

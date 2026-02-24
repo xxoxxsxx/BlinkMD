@@ -10,11 +10,13 @@ import {
   saveFileAs
 } from "../services/fileService";
 import { resolveCloseRequest } from "./closeGuard";
+import { resolveShortcutCommand } from "./shortcutKeymap";
 import brandLogo from "../assets/logo-transparent.png";
 import "./App.css";
 
 const TAURI_SHORTCUT_EDIT_EVENT = "blinkmd://shortcut-edit-mode";
 const TAURI_SHORTCUT_PREVIEW_EVENT = "blinkmd://shortcut-preview-mode";
+const TAURI_SHORTCUT_SPLIT_EVENT = "blinkmd://shortcut-split-mode";
 const PREVIEW_DEBOUNCE_MS = 120;
 const LARGE_FILE_PREVIEW_DEBOUNCE_MS = 420;
 const LARGE_FILE_THRESHOLD_BYTES = 1024 * 1024;
@@ -181,33 +183,30 @@ export function App() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      const hasPrimaryModifier = event.metaKey || event.ctrlKey;
-      if (!hasPrimaryModifier || event.altKey) {
+      const command = resolveShortcutCommand(event);
+      if (!command) {
         return;
       }
 
-      const pressedKey = event.key.toLowerCase();
-      if (pressedKey === "o") {
-        event.preventDefault();
+      event.preventDefault();
+      if (command === "open") {
         if (!isBusy) {
           void onOpen();
         }
-      } else if (pressedKey === "s" && event.shiftKey) {
-        event.preventDefault();
+      } else if (command === "saveAs") {
         if (!isBusy) {
           void onSaveAs();
         }
-      } else if (pressedKey === "s") {
-        event.preventDefault();
+      } else if (command === "save") {
         if (!isBusy) {
           void onSave();
         }
-      } else if (pressedKey === "e") {
-        event.preventDefault();
+      } else if (command === "edit") {
         switchMode("edit", "Switched to edit mode.");
-      } else if (pressedKey === "r") {
-        event.preventDefault();
+      } else if (command === "preview") {
         switchMode("preview", "Switched to preview mode.");
+      } else if (command === "split") {
+        switchMode("split", "Switched to split mode.");
       }
     }
 
@@ -225,6 +224,7 @@ export function App() {
     let disposed = false;
     let unlistenEdit: null | (() => void) = null;
     let unlistenPreview: null | (() => void) = null;
+    let unlistenSplit: null | (() => void) = null;
 
     async function setupTauriShortcutListeners() {
       const { listen } = await import("@tauri-apps/api/event");
@@ -245,6 +245,15 @@ export function App() {
         return;
       }
       unlistenPreview = offPreview;
+
+      const offSplit = await listen(TAURI_SHORTCUT_SPLIT_EVENT, () => {
+        switchMode("split", "Switched to split mode.");
+      });
+      if (disposed) {
+        offSplit();
+        return;
+      }
+      unlistenSplit = offSplit;
     }
 
     void setupTauriShortcutListeners();
@@ -253,6 +262,7 @@ export function App() {
       disposed = true;
       unlistenEdit?.();
       unlistenPreview?.();
+      unlistenSplit?.();
     };
   }, [isTauriRuntime, switchMode]);
 
