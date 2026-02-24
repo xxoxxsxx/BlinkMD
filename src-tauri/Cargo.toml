@@ -1,6 +1,6 @@
 [package]
 name = "blinkmd"
-version = "0.1.0"
+version = "0.1.1"
 description = "A lightweight markdown editor"
 authors = ["Ethan"]
 edition = "2021"
