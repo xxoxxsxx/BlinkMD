@@ -9,6 +9,7 @@ import {
   saveFile,
   saveFileAs
 } from "../services/fileService";
+import { resolveCloseRequest } from "./closeGuard";
 import brandLogo from "../assets/logo-transparent.png";
 import "./App.css";
 
@@ -270,12 +271,29 @@ export function App() {
       globalCloseGuardUnlisten = null;
 
       const offClose = await appWindow.onCloseRequested(async (event) => {
-        if (!isDirtyRef.current) {
+        const isProgrammaticClose = closeGuardActiveRef.current;
+        const decision = resolveCloseRequest({
+          isDirty: isDirtyRef.current,
+          forceCloseOnce: isProgrammaticClose
+        });
+        closeGuardActiveRef.current = decision.nextForceCloseOnce;
+
+        if (decision.shouldBlock) {
+          event.preventDefault();
+          setCloseConfirmVisible(true);
+          return;
+        }
+
+        if (isProgrammaticClose) {
           return;
         }
 
         event.preventDefault();
-        setCloseConfirmVisible(true);
+        try {
+          await closeWindow();
+        } catch {
+          setStatusMessage("Close failed.");
+        }
       });
 
       if (disposed) {
@@ -411,14 +429,24 @@ export function App() {
 
   async function closeWindow() {
     const { invoke } = await import("@tauri-apps/api/core");
-    await invoke("exit_app");
+    closeGuardActiveRef.current = true;
+    try {
+      await invoke("exit_app");
+    } catch (error) {
+      closeGuardActiveRef.current = false;
+      throw error;
+    }
   }
 
   async function onCloseConfirmSave() {
     setCloseConfirmVisible(false);
     const saved = await onSave();
     if (saved) {
-      await closeWindow();
+      try {
+        await closeWindow();
+      } catch {
+        setStatusMessage("Close failed.");
+      }
     } else {
       setStatusMessage("Close cancelled because save did not complete.");
     }
@@ -426,7 +454,11 @@ export function App() {
 
   async function onCloseConfirmDiscard() {
     setCloseConfirmVisible(false);
-    await closeWindow();
+    try {
+      await closeWindow();
+    } catch {
+      setStatusMessage("Close failed.");
+    }
   }
 
   function onCloseConfirmCancel() {
