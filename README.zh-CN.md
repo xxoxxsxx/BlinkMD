@@ -51,6 +51,20 @@ npm run tauri build
 
 产物位于 `src-tauri/target/release/bundle/`，包含对应平台的安装包。
 
+### macOS：提示"应用已损坏"的解决方法
+
+由于发布版本未经 Apple 签名，macOS Gatekeeper 可能会拦截应用并提示：
+
+> "BlinkMD.app"已损坏，无法打开。
+
+在终端中执行以下命令移除隔离属性即可：
+
+```bash
+xattr -cr /Applications/BlinkMD.app
+```
+
+之后即可正常打开。
+
 ## 常用命令
 
 | 命令 | 说明 |

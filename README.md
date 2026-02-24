@@ -51,6 +51,20 @@ npm run tauri build
 
 Output: platform-specific bundles in `src-tauri/target/release/bundle/`.
 
+### macOS: "App Is Damaged" Fix
+
+The release builds are not Apple-signed. macOS Gatekeeper may block the app with:
+
+> "BlinkMD.app" is damaged and can't be opened.
+
+Run the following command to remove the quarantine attribute:
+
+```bash
+xattr -cr /Applications/BlinkMD.app
+```
+
+Then open the app normally.
+
 ## Scripts
 
 | Command | Description |
