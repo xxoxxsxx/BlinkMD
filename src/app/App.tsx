@@ -56,7 +56,7 @@ export function App() {
   const isTauriRuntime = Boolean((window as TauriWindow).__TAURI_INTERNALS__);
 
   const [documentState, setDocumentState] = useState<DocumentModel>(getInitialDocumentState());
-  const [mode, setMode] = useState<ViewMode>("split");
+  const [mode, setMode] = useState<ViewMode>("edit");
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
   const [previewContent, setPreviewContent] = useState("");
   const [statusMessage, setStatusMessage] = useState("Ready");
@@ -353,7 +353,7 @@ export function App() {
     try {
       const nextDoc = await openFile();
       setDocumentState(nextDoc);
-      switchMode("edit");
+      switchMode("preview");
       setCursor({ line: 1, column: 1 });
       setStatusMessage("File opened.");
     } catch (error) {
