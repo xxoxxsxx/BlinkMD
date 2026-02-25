@@ -12,6 +12,7 @@ Fast startup, low memory footprint, keyboard-driven workflow.
 - **CodeMirror 6 editor** — Markdown syntax highlighting, line numbers, line wrapping
 - **Markdown rendering** — CommonMark + GFM (tables, task lists, fenced code blocks) via `marked`, with built-in XSS sanitization
 - **Native file I/O** — Open / Save / Save As through Tauri Rust commands and native file dialogs
+- **Drag-and-drop open (Tauri)** — drop `.md` / `.markdown` / `.txt` files onto the workspace to open, with unsaved-change confirmation
 - **Keyboard shortcuts** — `Cmd/Ctrl+O` open, `Cmd/Ctrl+S` save, `Cmd/Ctrl+Shift+S` save as, `Cmd/Ctrl+E` edit mode, `Cmd/Ctrl+R` preview mode, `Cmd/Ctrl+\` split mode
 - **Status bar** — word count (CJK + Latin), cursor position (Ln/Col), file name, dirty state indicator
 - **Close guard** — unsaved changes dialog (Save / Don't Save / Cancel) before closing

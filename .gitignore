@@ -5,6 +5,7 @@ dist
 *.md
 !README.md
 !README.zh-CN.md
+!FEATURE-LOG.md
 package-lock.json
 
 src-tauri/target

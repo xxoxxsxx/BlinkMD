@@ -3,6 +3,7 @@ import {
   FileOperationCancelledError,
   FileOperationError,
   getDisplayName,
+  openFileByPath,
   toFileOperationError
 } from "./fileService";
 
@@ -104,5 +105,14 @@ describe("getDisplayName", () => {
 
   it("handles filename without directory", () => {
     expect(getDisplayName("notes.md")).toBe("notes.md");
+  });
+});
+
+describe("openFileByPath", () => {
+  it("throws when called outside tauri runtime", async () => {
+    await expect(openFileByPath("/tmp/sample.md")).rejects.toMatchObject({
+      name: "FileOperationError",
+      message: "File open failed: Opening by path is only available in Tauri runtime."
+    });
   });
 });

@@ -6,6 +6,7 @@ import {
   FileOperationError,
   FileOperationCancelledError,
   openFile,
+  openFileByPath,
   saveFile,
   saveFileAs
 } from "../services/fileService";
@@ -22,6 +23,8 @@ const LARGE_FILE_PREVIEW_DEBOUNCE_MS = 420;
 const LARGE_FILE_THRESHOLD_BYTES = 1024 * 1024;
 const CJK_CHAR_REGEX = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu;
 const LATIN_CHAR_REGEX = /[\p{Script=Latin}]/u;
+const DROP_SUPPORTED_EXTENSIONS = [".md", ".markdown", ".txt"];
+const DROP_UNSUPPORTED_FILE_MESSAGE = "Drop ignored: only .md/.markdown/.txt are supported.";
 let globalCloseGuardUnlisten: null | (() => void) = null;
 
 function countWords(content: string): number {
@@ -51,6 +54,26 @@ function getUtf8SizeInBytes(content: string): number {
   return new TextEncoder().encode(content).length;
 }
 
+function isSupportedDropPath(path: string): boolean {
+  const normalizedPath = path.toLowerCase();
+  return DROP_SUPPORTED_EXTENSIONS.some((extension) => normalizedPath.endsWith(extension));
+}
+
+function isPointInsideRect(rect: DOMRect, x: number, y: number): boolean {
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+function isDropPositionInsideWorkspace(rect: DOMRect, position: { x: number; y: number }): boolean {
+  const scale = window.devicePixelRatio || 1;
+  if (isPointInsideRect(rect, position.x, position.y)) {
+    return true;
+  }
+  if (scale <= 1) {
+    return false;
+  }
+  return isPointInsideRect(rect, position.x / scale, position.y / scale);
+}
+
 export function App() {
   type TauriWindow = Window & { __TAURI_INTERNALS__?: unknown };
   const isTauriRuntime = Boolean((window as TauriWindow).__TAURI_INTERNALS__);
@@ -61,6 +84,7 @@ export function App() {
   const [previewContent, setPreviewContent] = useState("");
   const [statusMessage, setStatusMessage] = useState("Ready");
   const [isBusy, setIsBusy] = useState(false);
+  const [isDragActive, setIsDragActive] = useState(false);
   const latestContentRef = useRef(documentState.content);
   const closeGuardActiveRef = useRef(false);
   const isDirtyRef = useRef(documentState.isDirty);
@@ -151,6 +175,70 @@ export function App() {
       setStatusMessage(message);
     }
   }, []);
+
+  const applyOpenedDocument = useCallback((nextDoc: DocumentModel, message: string = "File opened.") => {
+    setDocumentState(nextDoc);
+    switchMode("preview");
+    setCursor({ line: 1, column: 1 });
+    setStatusMessage(message);
+  }, [switchMode]);
+
+  const reportOpenError = useCallback((error: unknown) => {
+    if (error instanceof FileOperationCancelledError) {
+      setStatusMessage("Open cancelled.");
+      return;
+    }
+    if (error instanceof FileOperationError) {
+      setStatusMessage(error.message);
+      return;
+    }
+    setStatusMessage("Open failed.");
+  }, []);
+
+  const confirmOpenWhenDirty = useCallback(async (): Promise<boolean> => {
+    if (!isDirtyRef.current) {
+      return true;
+    }
+
+    if (isTauriRuntime) {
+      const { ask } = await import("@tauri-apps/plugin-dialog");
+      return ask("You have unsaved changes. Continue opening another file?", {
+        title: "Unsaved Changes",
+        kind: "warning",
+        okLabel: "Continue",
+        cancelLabel: "Cancel"
+      });
+    }
+
+    return window.confirm("You have unsaved changes. Continue opening another file?");
+  }, [isTauriRuntime]);
+
+  const onOpenDroppedPath = useCallback(async (path: string, ignoredFileCount: number) => {
+    if (isBusyRef.current) {
+      setStatusMessage("Drop ignored because another operation is running.");
+      return;
+    }
+
+    const shouldContinue = await confirmOpenWhenDirty();
+    if (!shouldContinue) {
+      setStatusMessage("Open cancelled.");
+      return;
+    }
+
+    setIsBusy(true);
+    try {
+      const nextDoc = await openFileByPath(path);
+      const status =
+        ignoredFileCount > 0
+          ? `File opened. Ignored ${ignoredFileCount} additional dropped file(s).`
+          : "File opened.";
+      applyOpenedDocument(nextDoc, status);
+    } catch (error) {
+      reportOpenError(error);
+    } finally {
+      setIsBusy(false);
+    }
+  }, [applyOpenedDocument, confirmOpenWhenDirty, reportOpenError]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -328,44 +416,81 @@ export function App() {
     };
   }, [isTauriRuntime]);
 
-  async function onOpen() {
-    if (documentState.isDirty) {
-      if (isTauriRuntime) {
-        const { ask } = await import("@tauri-apps/plugin-dialog");
-        const shouldContinue = await ask(
-          "You have unsaved changes. Continue opening another file?",
-          { title: "Unsaved Changes", kind: "warning", okLabel: "Continue", cancelLabel: "Cancel" }
-        );
-        if (!shouldContinue) {
-          return;
-        }
-      } else {
-        const shouldContinue = window.confirm(
-          "You have unsaved changes. Continue opening another file?"
-        );
-        if (!shouldContinue) {
-          return;
-        }
+  useEffect(() => {
+    if (!isTauriRuntime) {
+      return;
+    }
+
+    let disposed = false;
+    let unlistenDragDrop: null | (() => void) = null;
+
+    function isInsideWorkspace(position: { x: number; y: number }): boolean {
+      const workspace = workspaceRef.current;
+      if (!workspace) {
+        return false;
       }
+      const rect = workspace.getBoundingClientRect();
+      return isDropPositionInsideWorkspace(rect, position);
+    }
+
+    async function setupTauriDropListeners() {
+      const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+      const currentWebview = getCurrentWebview();
+      const offDragDrop = await currentWebview.onDragDropEvent((event) => {
+        if (event.payload.type === "leave") {
+          setIsDragActive(false);
+          return;
+        }
+
+        const inWorkspace = isInsideWorkspace(event.payload.position);
+        if (event.payload.type === "enter" || event.payload.type === "over") {
+          setIsDragActive(inWorkspace);
+          return;
+        }
+
+        setIsDragActive(false);
+        if (!inWorkspace) {
+          return;
+        }
+
+        const droppedPaths = event.payload.paths;
+        const selectedPath = droppedPaths.find((path) => isSupportedDropPath(path));
+        if (!selectedPath) {
+          setStatusMessage(DROP_UNSUPPORTED_FILE_MESSAGE);
+          return;
+        }
+
+        const ignoredFileCount = droppedPaths.length - 1;
+        void onOpenDroppedPath(selectedPath, ignoredFileCount);
+      });
+
+      if (disposed) {
+        offDragDrop();
+        return;
+      }
+      unlistenDragDrop = offDragDrop;
+    }
+
+    void setupTauriDropListeners();
+
+    return () => {
+      disposed = true;
+      unlistenDragDrop?.();
+    };
+  }, [isTauriRuntime, onOpenDroppedPath]);
+
+  async function onOpen() {
+    const shouldContinue = await confirmOpenWhenDirty();
+    if (!shouldContinue) {
+      return;
     }
 
     setIsBusy(true);
     try {
       const nextDoc = await openFile();
-      setDocumentState(nextDoc);
-      switchMode("preview");
-      setCursor({ line: 1, column: 1 });
-      setStatusMessage("File opened.");
+      applyOpenedDocument(nextDoc);
     } catch (error) {
-      if (error instanceof FileOperationCancelledError) {
-        setStatusMessage("Open cancelled.");
-        return;
-      }
-      if (error instanceof FileOperationError) {
-        setStatusMessage(error.message);
-        return;
-      }
-      setStatusMessage("Open failed.");
+      reportOpenError(error);
     } finally {
       setIsBusy(false);
     }
@@ -479,6 +604,14 @@ export function App() {
     setCursor(nextCursor);
   }
 
+  const workspaceClassName = [
+    "workspace",
+    mode === "split" ? "workspace-split" : "",
+    isDragActive ? "is-drag-active" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <div className="app-shell">
       <header className="topbar" role="banner">
@@ -506,7 +639,7 @@ export function App() {
         </div>
       </header>
 
-      <main ref={workspaceRef} className={mode === "split" ? "workspace workspace-split" : "workspace"} role="main">
+      <main ref={workspaceRef} className={workspaceClassName} role="main">
         {mode === "edit" && (
           <EditorPane
             content={documentState.content}

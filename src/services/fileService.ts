@@ -114,8 +114,12 @@ async function openFileInTauri(): Promise<DocumentModel> {
     throw new FileOperationCancelledError("open");
   }
 
+  return openFileByPathInTauri(selectedPath);
+}
+
+async function openFileByPathInTauri(path: string): Promise<DocumentModel> {
   try {
-    const payload = await invoke<OpenFilePayload>("open_file", { path: selectedPath });
+    const payload = await invoke<OpenFilePayload>("open_file", { path });
     return {
       path: payload.path,
       content: payload.content,
@@ -161,6 +165,13 @@ export async function openFile(): Promise<DocumentModel> {
     return openFileInTauri();
   }
   return openFileInBrowser();
+}
+
+export async function openFileByPath(path: string): Promise<DocumentModel> {
+  if (!isTauriRuntime()) {
+    throw new FileOperationError("open", "Opening by path is only available in Tauri runtime.");
+  }
+  return openFileByPathInTauri(path);
 }
 
 export async function saveFile(doc: DocumentModel): Promise<string> {
