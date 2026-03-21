@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { ViewMode } from "../state/documentStore";
 
 const PREVIEW_DEBOUNCE_MS = 120;
@@ -39,11 +39,11 @@ export function usePreviewSync({
 
   // 立即刷新预览内容（绕过 debounce），用于打开文件等场景
   // 如果不传参数，则使用当前 content
-  function refreshPreview(nextContent?: string) {
+  const refreshPreview = useCallback((nextContent?: string) => {
     const effectiveContent = nextContent ?? content;
     immediateContentRef.current = effectiveContent;
     setPreviewContent(effectiveContent);
-  }
+  }, [content]);
 
   useEffect(() => {
     // 如果刚刚通过 refreshPreview 设置了即时内容，跳过这次 debounce 更新
